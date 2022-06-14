@@ -53,6 +53,7 @@ async function lending(userId, bookId) {
 }
 
 async function returning(userId, bookId) {
+  const currentLoan = `SELECT * FROM borrowedBooks where userId = ? AND bookId = ?`;
   const sql = `DELETE FROM borrowedBooks WHERE userId = ? AND bookId = ?;`;
 
   const findBook = `SELECT * FROM books WHERE id = ${bookId}`;
@@ -64,14 +65,23 @@ async function returning(userId, bookId) {
       } else if (!rows) {
         return reject("Book not found");
       } else {
-        const updateQ = `UPDATE books SET quantity  = quantity +1 WHERE id = ${bookId}`;
-        db.run(updateQ);
-
-        db.run(sql, [userId, bookId], (err) => {
+        db.all(currentLoan, [userId, bookId], (err, rows) => {
           if (err) {
             return reject(err);
           }
-          resolve(`You have returned ${rows.title} by ${rows.author}`);
+          if (rows.length === 0) {
+            return reject("You don't have this book on loan");
+          } else {
+            const updateQ = `UPDATE books SET quantity  = quantity +1 WHERE id = ${bookId}`;
+            db.run(updateQ);
+
+            db.run(sql, [userId, bookId], (err) => {
+              if (err) {
+                return reject(err);
+              }
+              resolve(`Book successfully returned`);
+            });
+          }
         });
       }
     });
